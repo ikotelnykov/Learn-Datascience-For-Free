@@ -2420,3 +2420,84 @@ Part 2:- [Free Online Courses](https://github.com/Developer-Y)
 Part 3:- [500 Datascience Projects](https://github.com/ashishpatel26/500-AI-Machine-learning-Deep-learning-Computer-vision-NLP-Projects-with-code)
 
 Part 4:- [100+ Free Machine Learning Books](https://www.theinsaneapp.com/2020/12/download-free-machine-learning-books.html)
+
+---
+
+# Cook Smart: Developer Walkthrough
+
+## 🍳 Product Overview
+Cook Smart is a **gamified cooking assistant** designed to make following recipes engaging and rewarding. It transforms cooking into an interactive experience with real-time feedback, progress tracking, and achievement systems.
+
+## 🌟 Key Features
+
+### 1) Interactive Cooking Mode
+- **Step-by-Step Guidance:** Focus mode displays one step at a time with large, readable text.
+- **Swipe Navigation:** Intuitive touch gestures (swipe left/right) to move between steps.
+- **Wake Lock:** Prevents the screen from dimming during active cooking sessions.
+
+### 2) Gamification System
+Cook Smart is designed to make cooking rewarding and "dopamine inducing":
+
+- **XP System:**
+  - `+10 XP` per completed step.
+  - `+20 XP` per finished timer.
+  - `+100 XP` for completing a recipe.
+- **Floating Text:** Visual `+10 XP` pop-ups at the click/tap location.
+- **Level Progression:**
+  - Formula: `Level = floor(sqrt(TotalXP / 1000)) + 1`.
+  - Home screen progress bar.
+  - Celebratory sound and animation on level-up.
+- **Chef Profile:** Persistent stats for level, total XP, and recipes cooked.
+
+### 3) Smart Timers
+- **Multi-Timer Support:** Run multiple timers simultaneously.
+- **Context Aware:** Timers are linked to recipe steps while running globally during a session.
+- **Visual Feedback:**
+  - Color-coded progress bars.
+  - Urgent states: warning (yellow) and critical (red).
+- **Auto-Dismiss:** Finished timers clear automatically after 15 seconds to keep the UI clean.
+
+### 4) Visual Timeline
+A dynamic timeline visualizes the full cooking session:
+
+- **Real-time Progress:** A moving “current time” playhead.
+- **Timer Visualization:** Distinct colored bars for duration and relative start time.
+- **Step Milestones:** Diamond markers (`♦️`) for completed steps.
+- **Slim Design:** Optimized to ~30px height for unobtrusive monitoring.
+
+## 🏗️ Technical Architecture
+
+### Tech Stack
+- **Framework:** React 18 (via CDN, no build step required).
+- **State Management:** `useState` plus app-level state for global stats.
+- **Persistence:** `localStorage` for `cookSmartStats` (XP, levels) and `cookSmartRecipes`.
+- **Styling:** Vanilla CSS + CSS variables for theme consistency.
+
+### Key Components
+- **App:** Root component managing global user stats (`xp`, `level`) and route/view switching.
+- **CookingModeView:** Core engine handling:
+  - Timer logic (`setInterval` tick).
+  - Wake Lock API integration.
+  - Timeline rendering.
+- **HomeView:** Dashboard for Chef Profile and recipe list.
+
+### Gamification Logic
+- **`addXP(amount)`** is the central XP function in `App`:
+  - Updates state.
+  - Triggers floating-text animation.
+  - Checks level-up condition.
+  - Plays sound effects.
+- **Sound Effects:** Generated with Web Audio API beeps/fanfares (no external audio assets).
+
+## 🎨 UI/UX Details
+- **Confetti:** Canvas-free CSS animation for recipe completion moments.
+- **Glassmorphism:** Translucent UI surfaces for a modern visual style.
+- **Animations:**
+  - `floatUp` for XP pop-ups.
+  - `slideIn` for view transitions.
+  - `pulse` for active timer buttons.
+
+## 🔜 Future Roadmap
+- **Recipe Estimation:** Predict total duration to better calibrate timeline scaling.
+- **Social Sharing:** Share chef level and completed dishes.
+- **Cloud Sync:** Persist progress and stats across devices.
