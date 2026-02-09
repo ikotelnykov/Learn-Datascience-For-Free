@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cook Smart</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root { --bg:#0f172a; --glass:rgba(255,255,255,.12); --text:#e2e8f0; --ok:#22c55e; --warn:#eab308; --crit:#ef4444; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:Inter,system-ui,sans-serif; background:radial-gradient(circle at top,#1e293b,#020617); color:var(--text); min-height:100vh; }
+    .app { max-width:900px; margin:0 auto; padding:16px; }
+    .card { background:var(--glass); backdrop-filter: blur(10px); border:1px solid rgba(255,255,255,.18); border-radius:14px; padding:14px; margin-bottom:12px; }
+    button { background:#334155; color:white; border:0; border-radius:10px; padding:10px 14px; cursor:pointer; }
+    button.primary{ background:#2563eb; } button.ok{background:#16a34a;} button.warn{background:#ca8a04;} button.ghost{background:transparent;border:1px solid #64748b;}
+    .header{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .step{font-size:1.6rem;line-height:1.4;min-height:120px;display:flex;align-items:center;justify-content:center;text-align:center;}
+    .done{ text-decoration:line-through; color:#86efac; }
+    .check{color:#22c55e;font-size:1.2rem;margin-right:8px;}
+    .timeline{position:relative;height:30px;background:rgba(148,163,184,.2);border-radius:8px;overflow:hidden;}
+    .playhead{position:absolute;top:0;bottom:0;width:2px;background:#f8fafc;}
+    .timerbar{position:absolute;top:6px;height:18px;border-radius:4px;opacity:.8;}
+    .milestone{position:absolute;top:8px;transform:translateX(-50%);font-size:14px;}
+    .progress{height:8px;background:#334155;border-radius:999px;overflow:hidden;}
+    .progress > span{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#84cc16);}
+    .xpFloat{position:fixed;color:#fde047;font-weight:700;pointer-events:none;animation:floatUp .9s ease-out forwards;}
+    @keyframes floatUp{from{transform:translateY(0);opacity:1}to{transform:translateY(-35px);opacity:0}}
+    .confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;}
+    .confetti i{position:absolute;width:8px;height:14px;animation:fall 2.6s linear forwards;}
+    @keyframes fall{from{transform:translateY(-20px) rotate(0)}to{transform:translateY(110vh) rotate(680deg);opacity:0}}
+    .pulse{animation:pulse 1s infinite;} @keyframes pulse{50%{transform:scale(1.03)}}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useEffect,useMemo,useRef,useState} = React;
+const STATS_KEY = 'cookSmartStats';
+const RECIPES_KEY = 'cookSmartRecipes';
+const defaultRecipes = [
+  {id:'r1', name:'Garlic Pasta', steps:['Boil salted water','Cook pasta 9 minutes','Saute garlic in olive oil','Toss pasta with sauce','Serve with parsley']},
+  {id:'r2', name:'Veggie Omelette', steps:['Chop veggies','Beat eggs with salt','Saute veggies','Add eggs and fold','Plate and garnish']}
+];
+const getLevel=(xp)=>Math.floor(Math.sqrt(xp/1000))+1;
+function loadStats(){ try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {xp:0, level:1, recipesCooked:0}; } catch { return {xp:0,level:1,recipesCooked:0}; } }
+function saveStats(s){ localStorage.setItem(STATS_KEY, JSON.stringify(s)); }
+function loadRecipes(){ try { return JSON.parse(localStorage.getItem(RECIPES_KEY)) || defaultRecipes; } catch { return defaultRecipes; } }
+
+function App(){
+  const [stats,setStats]=useState(loadStats);
+  const [view,setView]=useState('home');
+  const [recipe,setRecipe]=useState(null);
+  const [floats,setFloats]=useState([]);
+  const [confetti,setConfetti]=useState(false);
+  useEffect(()=>saveStats(stats),[stats]);
+
+  const audioCtxRef = useRef(null);
+  const audioCtx = () => audioCtxRef.current || (audioCtxRef.current = new (window.AudioContext||window.webkitAudioContext)());
+  const tone=(freq=.0,d=.08,type='sine',gain=.03,delay=0)=>{const ctx=audioCtx();const o=ctx.createOscillator();const g=ctx.createGain();o.type=type;o.frequency.value=freq;g.gain.value=gain;o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+delay);o.stop(ctx.currentTime+delay+d);};
+  const playPop=()=>tone(740,.05,'triangle',.025);
+  const playBeep=()=>{tone(1150,.07,'square',.03,0);tone(980,.07,'square',.03,.1);};
+  const playLevelUp=()=>[523,659,784,1046].forEach((f,i)=>tone(f,.11,'sine',.03,i*.1));
+
+  const showXP=(amount,e)=>{ const id=Date.now()+Math.random(); const x=e?.clientX ?? window.innerWidth/2; const y=e?.clientY ?? 100; setFloats(f=>[...f,{id,x,y,text:`+${amount} XP`}]); setTimeout(()=>setFloats(f=>f.filter(v=>v.id!==id)),900); };
+  const addXP=(amount,e)=>{ setStats(s=>{const nextXP=s.xp+amount;const nextLevel=getLevel(nextXP);if(nextLevel>s.level){playLevelUp();setConfetti(true);setTimeout(()=>setConfetti(false),2200);}playPop();showXP(amount,e);return {...s,xp:nextXP,level:nextLevel};}); };
+
+  return <div className="app">
+    {confetti && <Confetti/>}
+    {floats.map(f=><div key={f.id} className="xpFloat" style={{left:f.x,top:f.y}}>{f.text}</div>)}
+    {view==='home' && <Home stats={stats} onStart={(r)=>{setRecipe(r);setView('cook');}}/>}
+    {view==='cook' && recipe && <CookMode recipe={recipe} addXP={addXP} onExit={()=>setView('home')} onBeep={playBeep}
+      onComplete={(session)=>{setStats(s=>({...s,recipesCooked:s.recipesCooked+1}));addXP(100);setView('complete');setRecipe({...recipe,session});}}/>}
+    {view==='complete' && recipe && <Complete recipe={recipe} onHome={()=>setView('home')}/>}
+  </div>;
+}
+
+function Home({stats,onStart}){
+  const recipes = loadRecipes();
+  const currentBase=(stats.level-1)**2*1000; const nextBase=(stats.level)**2*1000; const pct=Math.min(100, ((stats.xp-currentBase)/(nextBase-currentBase||1))*100);
+  return <>
+    <div className="card"><h2>👨‍🍳 Chef Profile</h2><div className="row"><b>Level {stats.level}</b><span>XP: {stats.xp}</span><span>Recipes: {stats.recipesCooked}</span></div>
+      <div className="progress"><span style={{width:`${pct}%`}}/></div></div>
+    <div className="card"><h3>Recipes</h3>{recipes.map(r=><div key={r.id} className="row" style={{justifyContent:'space-between',padding:'8px 0'}}><span>{r.name}</span><button className="primary" onClick={()=>onStart(r)}>Start Cooking</button></div>)}</div>
+  </>;
+}
+
+function CookMode({recipe,addXP,onExit,onComplete,onBeep}){
+  const [stepIdx,setStepIdx]=useState(0); const [done,setDone]=useState({}); const [timers,setTimers]=useState([]); const [running,setRunning]=useState(true);
+  const [sessionStart]=useState(Date.now()); const [pauseAt,setPauseAt]=useState(null); const [pauseTotal,setPauseTotal]=useState(0); const [now,setNow]=useState(Date.now());
+  const [milestones,setMilestones]=useState([]); const wakeRef=useRef(null); const touchStart=useRef(null);
+
+  useEffect(()=>{const id=setInterval(()=>setNow(Date.now()),200);return ()=>clearInterval(id);},[]);
+  useEffect(()=>{if(running){if('wakeLock' in navigator){navigator.wakeLock.request('screen').then(l=>wakeRef.current=l).catch(()=>{});} } else {wakeRef.current?.release?.();wakeRef.current=null;} return ()=>{wakeRef.current?.release?.();};},[running]);
+
+  useEffect(()=>{setTimers(prev=>prev.filter(t=>!(t.finishedAt && now-t.finishedAt>15000)).map(t=>{
+    if(!t.finishedAt && now>=t.endsAt){ onBeep(); navigator.vibrate?.([140,80,140]); addXP(20); return {...t,finishedAt:now}; }
+    return t;
+  }));},[now]);
+
+  const elapsed = useMemo(()=>{ if(running) return Math.floor((now-sessionStart-pauseTotal)/1000); return Math.floor(((pauseAt||now)-sessionStart-pauseTotal)/1000); },[now,running,pauseAt,pauseTotal,sessionStart]);
+  const maxTime = Math.max(60, elapsed+10, ...timers.map(t=>Math.ceil((t.endsAt-sessionStart)/1000)));
+
+  const markDone=(e)=>{ if(done[stepIdx]) return; setDone(d=>({...d,[stepIdx]:true})); addXP(10,e); setMilestones(m=>[...m,{id:Date.now()+Math.random(), t:elapsed, step:stepIdx}]); };
+  const togglePause=()=>{ if(running){ setRunning(false); setPauseAt(Date.now()); } else { setPauseTotal(p=>p + (Date.now()-pauseAt)); setRunning(true); setPauseAt(null);} };
+  const reset=()=>{ if(confirm('Reset this cooking session?')) location.reload(); };
+  const exit=()=>{ if(confirm('Exit session? Progress will be lost.')) onExit(); };
+  const addTimer=()=>{ const input=prompt('Set timer MM:SS','03:00'); if(!input) return; const [m,s]=input.split(':').map(Number); const duration=((m||0)*60+(s||0)); if(duration<=0) return;
+    const t={id:Date.now()+Math.random(), step:stepIdx, duration, startedAt:Date.now(), endsAt:Date.now()+duration*1000, finishedAt:null}; setTimers(v=>[...v,t]); };
+
+  const completedCount = Object.keys(done).length;
+  useEffect(()=>{ if(completedCount===recipe.steps.length){ onComplete({elapsed,stepsCompleted:completedCount,timersUsed:timers.length,milestones,timers}); } },[completedCount]);
+
+  return <>
+    <div className="card header"><button className="ghost" onClick={exit}>Exit</button><div className="row"><button onClick={togglePause}>{running?'Pause':'Resume'}</button><button className="warn" onClick={reset}>Reset</button></div></div>
+    <div className="card"><div className="row" style={{justifyContent:'space-between'}}><b>{recipe.name}</b><span>Elapsed: {fmt(elapsed)}</span></div>
+      <div className="timeline">
+        <div className="playhead" style={{left:`${(elapsed/maxTime)*100}%`}}/>
+        {timers.map((t,i)=>{const l=((t.startedAt-sessionStart)/1000)/maxTime*100; const w=(t.duration/maxTime)*100; const rem=Math.max(0, Math.ceil((t.endsAt-now)/1000)); const color=t.finishedAt?'#ef4444': rem<11?'#ef4444': rem<31?'#eab308':'#22c55e'; return <div key={t.id} className="timerbar" style={{left:`${l}%`, width:`${w}%`, background:color, top: (i%2)*10+2}}/>;})}
+        {milestones.map(m=><div key={m.id} className="milestone" style={{left:`${(m.t/maxTime)*100}%`}}>♦️</div>)}
+      </div>
+    </div>
+    <div className="card step" onTouchStart={(e)=>touchStart.current=e.touches[0].clientX} onTouchEnd={(e)=>{const dx=e.changedTouches[0].clientX-(touchStart.current||0); if(dx>50) setStepIdx(i=>Math.max(0,i-1)); if(dx<-50) setStepIdx(i=>Math.min(recipe.steps.length-1,i+1));}}>
+      <div>{done[stepIdx] && <span className="check">✔</span>}<span className={done[stepIdx]?'done':''}>{recipe.steps[stepIdx]}</span></div>
+    </div>
+    <div className="card">
+      <div className="row" style={{justifyContent:'space-between'}}>
+        <button onClick={()=>setStepIdx(i=>Math.max(0,i-1))}>Prev</button>
+        <button className="ok" onClick={markDone}>Done (+10XP)</button>
+        <button onClick={()=>setStepIdx(i=>Math.min(recipe.steps.length-1,i+1))}>Next</button>
+      </div>
+      <div className="row" style={{marginTop:10,justifyContent:'space-between'}}>
+        <button className="primary pulse" onClick={addTimer}>Add Timer</button>
+        <span>Step {stepIdx+1}/{recipe.steps.length} • Completed {completedCount}</span>
+      </div>
+      <div style={{marginTop:10}}>{timers.map(t=>{const rem=Math.max(0, Math.ceil((t.endsAt-now)/1000)); const pct=Math.max(0, Math.min(100, (1-rem/t.duration)*100)); return <div key={t.id} className="row" style={{marginBottom:8}}><span>Step {t.step+1}</span><span style={{minWidth:54}}>{t.finishedAt?'Done':fmt(rem)}</span><div className="progress" style={{flex:1}}><span style={{width:`${pct}%`, background:t.finishedAt?'#ef4444':rem<11?'#ef4444':rem<31?'#eab308':'#22c55e'}}/></div></div>;})}</div>
+    </div>
+  </>;
+}
+
+function Complete({recipe,onHome}){
+  const s=recipe.session;
+  const maxTime=Math.max(60,s.elapsed,...s.timers.map(t=>Math.ceil((t.endsAt-t.startedAt)/1000)));
+  return <>
+    <div className="card"><h2>🎉 Cooking Complete</h2><div className="row"><span>Total Time: {fmt(s.elapsed)}</span><span>Steps Completed: {s.stepsCompleted}</span><span>Timers Used: {s.timersUsed}</span></div></div>
+    <div className="card"><div className="timeline">{s.timers.map((t,i)=>{const l=((t.startedAt-(Date.now()-s.elapsed*1000))/1000)/maxTime*100; const w=(t.duration/maxTime)*100; return <div key={i} className="timerbar" style={{left:`${Math.max(0,l)}%`,width:`${w}%`,background:'#38bdf8',top:(i%2)*10+2}}/>;})}{s.milestones.map((m,i)=><div key={i} className="milestone" style={{left:`${(m.t/maxTime)*100}%`}}>♦️</div>)}</div></div>
+    <button className="primary" onClick={onHome}>Back Home</button>
+  </>;
+}
+
+function Confetti(){
+  return <div className="confetti">{Array.from({length:80}).map((_,i)=><i key={i} style={{left:Math.random()*100+'vw', background:`hsl(${Math.random()*360} 90% 60%)`, animationDelay:(Math.random()*0.6)+'s'}}/>)}</div>;
+}
+const fmt=(s)=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

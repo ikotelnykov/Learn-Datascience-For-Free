@@ -2501,3 +2501,15 @@ A dynamic timeline visualizes the full cooking session:
 - **Recipe Estimation:** Predict total duration to better calibrate timeline scaling.
 - **Social Sharing:** Share chef level and completed dishes.
 - **Cloud Sync:** Persist progress and stats across devices.
+
+## Cook Smart Mini App (Prototype)
+
+A runnable prototype is available at `index.html` and implements the FRS-style gamified cooking workflow.
+
+### Run locally
+
+```bash
+python3 -m http.server 8000
+```
+
+Then open `http://localhost:8000/index.html`.
